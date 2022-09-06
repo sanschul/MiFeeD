@@ -1,0 +1,6 @@
+FROM python:3-bullseye
+RUN apt update -y && apt upgrade -y
+RUN pip install pydriller psycopg2
+WORKDIR /app
+ADD combine.py .
+ENTRYPOINT ["python", "/app/combine.py"]
