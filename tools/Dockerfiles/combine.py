@@ -58,11 +58,12 @@ try:
                                   port="5432",
                                   database="Masterarbeit")
     cursor = connection.cursor()
-
+    
     count = 0
     for x in out:
-        postgres_insert_query = """ INSERT INTO %s (hash, file, type, expression, constants) VALUES (%s,%s,%s,%s,%s)"""
-        record_to_insert = ("libxml2", x[0], x[1], x[2], x[3], x[4])
+        # TODO: edit for right tablename!
+        postgres_insert_query = """ INSERT INTO libxml2 (hash, file, type, expression, constants) VALUES (%s,%s,%s,%s,%s)"""
+        record_to_insert = (x[0], x[1], x[2], x[3], x[4])  
         cursor.execute(postgres_insert_query, record_to_insert)
         count += cursor.rowcount
 

@@ -42,7 +42,7 @@ func main() {
 	commits := readCommits()
 	log.Info().Int("Commitzahl", len(commits)).Msg("Commits eingelesen")
 
-	pool := workerpool.New(4)
+	pool := workerpool.New(4)  // Change for different number of Threads
 	log.Debug().Int("Poolsize", pool.Size()).Msg("Workerpool created")
 
 	for _, commit := range commits {
