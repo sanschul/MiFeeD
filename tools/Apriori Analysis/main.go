@@ -8,10 +8,20 @@ import (
 	"github.com/manifoldco/promptui"
 	"os"
 	"strings"
+	"time"
 )
 
+const databaseURL = "postgres://USER:PASSWORD@HOST/DATABASE"
+const confidence = 0.85   // confidence for Association Rule Mining (0.85 = 85%)
+const minNumCommit = 30.0 // support is calculated like: nimNumCommit / num(all unique Commits in DB) - minNumCommit is set here
+
+const printRules = false // Should all rules be printed to the console?
+const saveToDB = false   // Should the rules be saved to the database?
+
 func main() {
-	conn, err := pgx.Connect(context.Background(), "postgres://postgres:oQyuEHiD8FF5DLJ1HDTwIWyhm9ie6csoIEvsEZz8GXhXE48RcS@zottelchin.de:8877/Masterarbeit")
+	ctxTimeout, cancle := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancle()
+	conn, err := pgx.Connect(ctxTimeout, databaseURL)
 	if err != nil {
 		fmt.Printf("DB-Connect Error: %s\n", err.Error())
 		os.Exit(1)
@@ -19,7 +29,9 @@ func main() {
 	defer conn.Close(context.Background())
 
 	tables := []string{}
-	rows, _ := conn.Query(context.Background(), "select table_name from information_schema.tables where table_schema='public' and table_name not like '%_rules'")
+	ctxTimeout, cancle = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancle()
+	rows, _ := conn.Query(ctxTimeout, "select table_name from information_schema.tables where table_schema='public' and table_name not like '%_rules'")
 	defer rows.Close()
 	for rows.Next() {
 		name := ""
@@ -77,18 +89,26 @@ func calcApriori(table string, db *pgx.Conn) {
 		filtered = append(filtered, byCommit[hash])
 	}
 
-	mConf := 0.85
-	mSup := 15.0 / float64(len(byCommit))
+	mConf := confidence
+	mSup := minNumCommit / float64(len(byCommit))
 
 	fmt.Printf("To be included, the features of the rule have to occure in %.0f of the commits = minSupoort: %.3f%%\n\n", float64(len(byCommit))*mSup, mSup)
 
 	apri := Apriori.NewApriori(filtered)
 	results := apri.Calculate(Apriori.NewOptions(mSup, mConf, 0.0, 0))
 
-	pprintr(results)
-	upladeRules(results, table, db)
+	if printRules {
+		pprintr(results)
+	}
+	if saveToDB {
+		fmt.Println("Beginning Database insert for results")
+		upladeRules(results, table, db)
+		fmt.Print("Insert finished")
+	}
 	if len(results) == 0 {
 		fmt.Println("No rule found in data")
+	} else {
+		fmt.Printf("%d rules found in data\n", len(results))
 	}
 	fmt.Println("=================================================")
 }
@@ -120,9 +140,14 @@ func pprintr(res []Apriori.RelationRecord) {
 }
 
 func upladeRules(rules []Apriori.RelationRecord, table string, db *pgx.Conn) {
+	ctxTimeout, cancle := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancle()
+	db.Exec(ctxTimeout, fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s_rules(id SERIAL PRIMARY KEY, base TEXT NOT NULL, add TEXT NOT NULL,confidence double precision NOT NULL, support double precision NOT NULL );", table))
 	for _, r := range rules {
 		for _, stats := range r.GetOrderedStatistic() {
-			db.Exec(context.Background(),
+			ctxTimeout, cancle := context.WithTimeout(context.Background(), 1*time.Second)
+			defer cancle()
+			db.Exec(ctxTimeout,
 				fmt.Sprintf("insert into %s_rules (base, add, confidence, support) values ($1, $2, $3, $4)", table),
 				strings.Join(stats.GetBase(), ";"),
 				strings.Join(stats.GetAdd(), ";"),

@@ -106,3 +106,27 @@ Anzahl Features in mehr als einem Commit: 1
 Anzahl aller Features:                    2
 
 ```
+
+
+## Apriori Analysis
+The minig of association rules can be executed with the golang script in the Apriori Analysis folder. 
+Assuming golang is already installed, dependencies can be loaded with `go mod download`. 
+
+You have to edit the databaseURL variable according to your database. Support and Confidence for the algorithm can also be adjusted here. The Confidence is calculated based on the number of total commits in the database.
+
+After this the tool can be startet with `go run main.go`. This is a tui-application as well. You will be asked to select the table with your data similar to the previous example.
+
+The default is to mine the rules and don't print or save them. This can also be changed with the variables in the beginning to print all rules to the console (`printRules`) or to save all rules into the database for future analysis (`saveToDB`). 
+**!! WARINING: Saving them to the database will not check for exisiting rule in the Table and just add them at the end !!**
+
+```
+✔ openvpn
+=================================================
+=== openvpn ===
+=================================================
+Number of Commits in DB: 1681
+To be included, the features of the rule have to occure in 30 of the commits = minSupoort: 0.018%
+
+1124 rules found in data
+=================================================
+```
